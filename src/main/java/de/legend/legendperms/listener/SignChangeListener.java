@@ -11,10 +11,8 @@ import org.bukkit.event.block.SignChangeEvent;
 /**
  * Created by YannicK S. on 26.05.2023
  */
-public class SignChangeListener implements Listener {
+public record SignChangeListener(LegendPermsPlugin plugin) implements Listener {
 
-    private final LegendPermsPlugin plugin;
-    
     public SignChangeListener(final LegendPermsPlugin plugin) {
         this.plugin = plugin;
         Bukkit.getPluginManager().registerEvents(this, plugin);

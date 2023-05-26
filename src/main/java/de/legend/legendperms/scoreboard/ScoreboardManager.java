@@ -8,6 +8,7 @@ import org.bukkit.scoreboard.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -39,7 +40,7 @@ public class ScoreboardManager {
     private void createScoreboard(final Player player) {
         if (this.playerScoreboards.containsKey(player.getUniqueId())) return;
 
-        final Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        final Scoreboard scoreboard = Objects.requireNonNull(Bukkit.getScoreboardManager()).getNewScoreboard();
 
         this.playerScoreboards.put(player.getUniqueId(), scoreboard);
         this.playerTeams.put(player.getUniqueId(), generateTeamName(player));
@@ -111,7 +112,7 @@ public class ScoreboardManager {
             final String teamName = this.playerTeams.get(player.getUniqueId());
 
             if (scoreboard.getTeam(teamName) != null) {
-                scoreboard.getTeam(teamName).unregister();
+                Objects.requireNonNull(scoreboard.getTeam(teamName)).unregister();
             }
 
             createTeamForPlayer(player, scoreboard);

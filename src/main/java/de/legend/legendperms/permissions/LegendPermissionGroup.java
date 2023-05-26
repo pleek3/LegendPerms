@@ -23,9 +23,8 @@ public class LegendPermissionGroup {
     private final List<String> permissions = new ArrayList<>();
 
     private final String name;
+    private final int weight;
     private String prefix;
-
-    private int weight;
 
     public LegendPermissionGroup(String name, String prefix, int weight, boolean loadPermissions) {
         this.name = name;
@@ -168,42 +167,19 @@ public class LegendPermissionGroup {
     public void saveData() {
         if (PLUGIN.testing()) return;
 
-        final String query = "SELECT * FROM `legend_ranks` WHERE `name` = ?";
-        final String insertQuery = "INSERT INTO `legend_ranks` (name, prefix, weight) VALUES (?,?, ?)";
-        final String updateQuery = "UPDATE `legend_ranks` SET `prefix` = ?, `weight`=? WHERE `name` = ?";
+        final String query = "INSERT INTO `legend_ranks` SET name=?, prefix=?, weight=? ON DUPLICATE KEY UPDATE prefix=?, weight=?";
 
-        final Connection connection = DATABASE_MANAGER.connection();
-
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, this.name);
-
-            try (final ResultSet resultSet = statement.executeQuery()) {
-
-                if (!resultSet.next()) {
-                    PreparedStatement insertStatement = connection.prepareStatement(insertQuery);
-                    insertStatement.setString(1, this.name);
-                    insertStatement.setString(2, this.prefix);
-                    insertStatement.setInt(3, this.weight);
-                    DATABASE_MANAGER.executeUpdate(insertStatement);
-                    return;
-                }
-
-                PreparedStatement updateStatement = connection.prepareStatement(updateQuery);
-                updateStatement.setString(1, this.prefix);
-                updateStatement.setInt(2, this.weight);
-                updateStatement.setString(3, this.name);
-                DATABASE_MANAGER.executeUpdate(updateStatement);
+        try (Connection con1 = DATABASE_MANAGER.connection()) {
+            try (PreparedStatement statement = con1.prepareStatement(query)) {
+                statement.setString(1, this.name);
+                statement.setString(2, this.prefix);
+                statement.setLong(3, this.weight);
+                statement.setString(4, this.prefix);
+                statement.setLong(5, this.weight);
+                DATABASE_MANAGER.executeUpdate(statement);
             }
         } catch (SQLException exception) {
             exception.printStackTrace();
-        } finally {
-            try {
-                if (!connection.isClosed()) {
-                    connection.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 

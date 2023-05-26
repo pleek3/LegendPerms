@@ -112,7 +112,7 @@ public class LegendPermissionPlayer {
 
         long diff = this.expiredTimestamp - System.currentTimeMillis();
 
-        if (diff / 1000 <= 0) {
+        if (diff <= 0) {
             leaveCurrentGroup();
 
             final Player player = Bukkit.getPlayer(this.uuid);
@@ -129,8 +129,7 @@ public class LegendPermissionPlayer {
     private void loadData() {
         final String query = "SELECT * FROM `legend_rank_users` WHERE `uuid` = ?";
 
-        final Connection connection = DATABASE_MANAGER.connection();
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = DATABASE_MANAGER.connection().prepareStatement(query)) {
             statement.setString(1, this.uuid.toString());
 
             try (final ResultSet resultSet = statement.executeQuery()) {
@@ -166,45 +165,21 @@ public class LegendPermissionPlayer {
     public void saveData() {
         if (LegendPermsPlugin.instance().testing()) return;
 
+        final String query = "INSERT INTO legend_rank_users SET uuid=?, group_name=?, previous_group_name=?, expired_timestamp=? ON DUPLICATE KEY UPDATE group_name=?, previous_group_name=?, expired_timestamp=?";
 
-        final String query = "SELECT * FROM `legend_rank_users` WHERE `uuid` = ?";
-        final String insertQuery = "INSERT INTO `legend_rank_users` (uuid, group_name,previous_group_name, expired_timestamp) VALUES (?,?,?,?)";
-        final String updateQuery = "UPDATE `legend_rank_users` SET `group_name` = ?, `previous_group_name`=?,`expired_timestamp`=? WHERE `uuid` = ?";
-
-        final Connection connection = DATABASE_MANAGER.connection();
-
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, this.uuid.toString());
-
-            try (final ResultSet resultSet = statement.executeQuery()) {
-
-                if (!resultSet.next()) {
-                    PreparedStatement insertStatement = connection.prepareStatement(insertQuery);
-                    insertStatement.setString(1, this.uuid.toString());
-                    insertStatement.setString(2, this.group.getName());
-                    insertStatement.setString(3, this.previousGroup.getName());
-                    insertStatement.setLong(4, this.expiredTimestamp);
-                    DATABASE_MANAGER.executeUpdate(insertStatement);
-                    return;
-                }
-
-                PreparedStatement updateStatement = connection.prepareStatement(updateQuery);
-                updateStatement.setString(1, this.group.getName());
-                updateStatement.setString(2, this.previousGroup.getName());
-                updateStatement.setLong(3, this.expiredTimestamp);
-                updateStatement.setString(4, this.uuid.toString());
-                DATABASE_MANAGER.executeUpdate(updateStatement);
+        try (Connection con1 = DATABASE_MANAGER.connection()) {
+            try (PreparedStatement statement = con1.prepareStatement(query)) {
+                statement.setString(1, this.uuid.toString());
+                statement.setString(2, this.group.getName());
+                statement.setString(3, this.previousGroup.getName());
+                statement.setLong(4, this.expiredTimestamp);
+                statement.setString(5, this.group.getName());
+                statement.setString(6, this.previousGroup.getName());
+                statement.setLong(7, this.expiredTimestamp);
+                DATABASE_MANAGER.executeUpdate(statement);
             }
         } catch (SQLException exception) {
             exception.printStackTrace();
-        } finally {
-            try {
-                if (!connection.isClosed()) {
-                    connection.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 

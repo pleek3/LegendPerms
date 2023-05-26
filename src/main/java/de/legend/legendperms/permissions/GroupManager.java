@@ -30,14 +30,14 @@ public class GroupManager {
 
     private void createTablesIfNotExists() {
         this.plugin.databaseManager().executeUpdate(
-                "CREATE TABLE IF NOT EXISTS `legend_ranks` (`name` VARCHAR(36), `prefix` TEXT, weight INT, UNIQUE KEY (`name`))");
+                "CREATE TABLE IF NOT EXISTS `legend_ranks` (`name` VARCHAR(36) UNIQUE, `prefix` TEXT, weight INT, UNIQUE KEY (`name`))");
 
         this.plugin.databaseManager().executeUpdate(
-                "CREATE TABLE IF NOT EXISTS `legend_rank_users` (`uuid` VARCHAR(36), `group_name` VARCHAR(36)," +
+                "CREATE TABLE IF NOT EXISTS `legend_rank_users` (`uuid` VARCHAR(36) UNIQUE, `group_name` VARCHAR(36)," +
                         " previous_group_name VARCHAR(36), expired_timestamp BIGINT,UNIQUE KEY (`uuid`))");
 
         this.plugin.databaseManager().executeUpdate(
-                "CREATE TABLE IF NOT EXISTS `legend_rank_permissions` (`id` BIGINT NOT NULL AUTO_INCREMENT, `group_name` VARCHAR(36), `permission_string` TEXT, UNIQUE KEY (`id`))");
+                "CREATE TABLE IF NOT EXISTS `legend_rank_permissions` (`id` BIGINT NOT NULL AUTO_INCREMENT UNIQUE, `group_name` VARCHAR(36), `permission_string` TEXT, UNIQUE KEY (`id`))");
     }
 
     private void createFallbackGroup() {
@@ -113,7 +113,7 @@ public class GroupManager {
      * Sucht eine Gruppe anhand des Gruppennamens.
      *
      * @param groupName Der Name der Gruppe.
-     * @return Die gefundenen Gruppe oder null, wenn keine Gruppe mit dem angegebenen Namen existiert.
+     * @return Die gefundene Gruppe oder null, wenn keine Gruppe mit dem angegebenen Namen existiert.
      */
     public LegendPermissionGroup findGroupByName(final String groupName) {
         return this.groups.getOrDefault(groupName, null);

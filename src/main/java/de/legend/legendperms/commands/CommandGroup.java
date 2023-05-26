@@ -33,9 +33,7 @@ public class CommandGroup implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender cs, Command command, String label, String[] args) {
-        if (!(cs instanceof Player)) return true;
-
-        final Player executor = (Player) cs;
+        if (!(cs instanceof final Player executor)) return true;
 
         if (args.length == 0) {
             sendGroupInformation(executor);
@@ -134,11 +132,11 @@ public class CommandGroup implements CommandExecutor {
     }
 
     /**
-     * Ändert den Präfix einer Berechtigungsgruppe für einen bestimmten Spieler.
+     * Ändert den Prefix einer Berechtigungsgruppe für einen bestimmten Spieler.
      *
      * @param executor      Der Spieler, der die Präfix-Änderung ausführt.
      * @param groupName     Der Name der zu aktualisierenden Berechtigungsgruppe.
-     * @param updatedPrefix Der neue Präfix, der für die Berechtigungsgruppe festgelegt werden soll.
+     * @param updatedPrefix Der neue Prefix, der für die Berechtigungsgruppe festgelegt werden soll.
      */
     private void handleChangePrefix(final Player executor, final String groupName, final String updatedPrefix) {
         final LegendPermissionGroup group = this.groupManager.findGroupByName(groupName);
@@ -172,12 +170,9 @@ public class CommandGroup implements CommandExecutor {
         }
 
         long diff = legendPermissionPlayer.getExpiredTimestamp() - System.currentTimeMillis();
-
-        if (diff / 1000 >= 0) {
-            this.languageManager.sendTranslatedMessage(executor,
-                    "current_rank_timestamp_time",
-                    Utils.timeToString(diff));
-        }
+        this.languageManager.sendTranslatedMessage(executor,
+                "current_rank_timestamp_time",
+                Utils.timeToString(diff));
     }
 
     /**
