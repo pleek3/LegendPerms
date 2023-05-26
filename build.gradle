@@ -1,0 +1,56 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id 'java'
+}
+
+group 'de.legend.legendperms'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+
+    maven { url 'https://jitpack.io' }
+    maven { url 'https://repo.papermc.io/repository/maven-public/' }
+
+    maven {
+        url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/'
+
+        // As of Gradle 5.1, you can limit this to only those
+        // dependencies you expect from it
+        content {
+            includeGroup 'org.bukkit'
+            includeGroup 'org.spigotmc'
+        }
+    }
+}
+
+
+dependencies {
+    annotationProcessor 'org.projectlombok:lombok:1.18.28'
+    compileOnly 'org.projectlombok:lombok:1.18.28'
+    compileOnly 'org.spigotmc:spigot-api:1.19.3-R0.1-SNAPSHOT'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.mariadb.jdbc:mariadb-java-client:3.1.2'
+
+    implementation 'mysql:mysql-connector-java:5.1.44'
+
+    // Tests
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+    testImplementation 'com.github.seeseemelk:MockBukkit-v1.19:2.29.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.9.3'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+compileJava.options.encoding = 'UTF-8'
+
+shadowJar {
+    mergeServiceFiles()
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xlint:deprecation']
+}

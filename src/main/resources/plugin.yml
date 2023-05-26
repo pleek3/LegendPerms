@@ -1,0 +1,13 @@
+name: LegendPerms
+main: de.legend.legendperms.LegendPermsPlugin
+version: 1.0
+description: Group/Rank plugin for playLegends
+author: TeamHardcore
+
+commands:
+  group:
+    description: Manage the groups
+    aliases:
+      - groups
+      - rank
+      - ranks
