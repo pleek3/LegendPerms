@@ -5,6 +5,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Created by YannicK S. on 26.05.2023
@@ -74,8 +75,8 @@ public class MessagesFile extends FileBase {
     private void loadMessages() {
         if (!getConfig().isConfigurationSection("")) return;
 
-        for (final String language : getConfig().getConfigurationSection("").getKeys(false)) {
-            for (String identifier : getConfig().getConfigurationSection(language).getKeys(false)) {
+        for (final String language : Objects.requireNonNull(getConfig().getConfigurationSection("")).getKeys(false)) {
+            for (String identifier : Objects.requireNonNull(getConfig().getConfigurationSection(language)).getKeys(false)) {
 
                 final String message = getConfig().getString(language + "." + identifier);
                 loadMessage(language, identifier, message);

@@ -16,10 +16,8 @@ import java.util.Collections;
 /**
  * Created by YannicK S. on 25.05.2023
  */
-public class PlayerJoinListener implements Listener {
+public record PlayerJoinListener(LegendPermsPlugin plugin) implements Listener {
 
-    private final LegendPermsPlugin plugin;
-    
     public PlayerJoinListener(final LegendPermsPlugin plugin) {
         this.plugin = plugin;
         Bukkit.getPluginManager().registerEvents(this, plugin);

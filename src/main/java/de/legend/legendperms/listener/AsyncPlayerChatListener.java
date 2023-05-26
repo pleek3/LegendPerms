@@ -13,9 +13,7 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 /**
  * Created by YannicK S. on 26.05.2023
  */
-public class AsyncPlayerChatListener implements Listener {
-
-    private final LegendPermsPlugin plugin;
+public record AsyncPlayerChatListener(LegendPermsPlugin plugin) implements Listener {
 
     public AsyncPlayerChatListener(final LegendPermsPlugin plugin) {
         this.plugin = plugin;
@@ -25,7 +23,8 @@ public class AsyncPlayerChatListener implements Listener {
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         final Player player = event.getPlayer();
-        final LegendPermissionPlayer legendPermissionPlayer = this.plugin.groupManager().getOrCreatePlayer(player.getUniqueId());
+        final LegendPermissionPlayer legendPermissionPlayer = this.plugin.groupManager()
+                .getOrCreatePlayer(player.getUniqueId());
 
         final LegendPermissionGroup group = legendPermissionPlayer.getGroup();
 

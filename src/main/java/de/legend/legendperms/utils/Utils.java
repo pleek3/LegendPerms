@@ -110,7 +110,7 @@ public class Utils {
      * Das Format wird konstruiert, indem die entsprechenden Einheiten aus der gegebenen Zeit extrahiert werden.
      *
      * @param time die Zeit in Millisekunden, die konvertiert werden soll
-     * @return ein String, der das lesbares Zeitformat repräsentiert
+     * @return ein String, der das lesbare Zeitformat repräsentiert
      */
     public static String timeToString(long time) {
         String message = "";
