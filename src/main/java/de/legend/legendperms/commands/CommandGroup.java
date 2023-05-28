@@ -138,7 +138,7 @@ public class CommandGroup implements CommandExecutor {
      * @param groupName     Der Name der zu aktualisierenden Berechtigungsgruppe.
      * @param updatedPrefix Der neue Prefix, der für die Berechtigungsgruppe festgelegt werden soll.
      */
-    private void handleChangePrefix(final Player executor, final String groupName, final String updatedPrefix) {
+    private void handleChangePrefix(final Player executor, final String groupName, String updatedPrefix) {
         final LegendPermissionGroup group = this.groupManager.findGroupByName(groupName);
 
         if (group == null) {
@@ -146,6 +146,7 @@ public class CommandGroup implements CommandExecutor {
             return;
         }
 
+        updatedPrefix = ChatColor.translateAlternateColorCodes('&', updatedPrefix);
         group.setPrefix(updatedPrefix);
         this.languageManager.sendTranslatedMessage(executor, "rank_prefix_updated", groupName, updatedPrefix);
     }

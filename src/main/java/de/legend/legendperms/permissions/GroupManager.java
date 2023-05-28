@@ -1,18 +1,19 @@
 package de.legend.legendperms.permissions;
 
 import de.legend.legendperms.LegendPermsPlugin;
+import lombok.Getter;
 import org.bukkit.Bukkit;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by YannicK S. on 25.05.2023
  */
+@Getter
 public class GroupManager {
 
     private final Map<UUID, LegendPermissionPlayer> players = new HashMap<>();
@@ -24,7 +25,6 @@ public class GroupManager {
         createTablesIfNotExists();
         loadGroups();
         createFallbackGroup();
-
         startCheckExpiredTask();
     }
 
@@ -43,7 +43,7 @@ public class GroupManager {
     private void createFallbackGroup() {
         if (this.groups.containsKey("fallback")) return;
 
-        final LegendPermissionGroup fallbackGroup = new LegendPermissionGroup("fallback", "FALLBACK", 1, true);
+        final LegendPermissionGroup fallbackGroup = new LegendPermissionGroup("fallback", "FALLBACK", 1, false, false);
         fallbackGroup.saveData();
         this.groups.put("fallback", fallbackGroup);
     }
@@ -64,10 +64,13 @@ public class GroupManager {
 
                     final int groupWeight = resultSet.getInt("weight");
                     final String groupPrefix = resultSet.getString("prefix");
+
+                    //Die Gruppen werden einmalig beim Start des Servers geladen. Damit der Server erst betretbar ist, wenn alle Gruppen geladen sind, laden wir hier die Gruppen nicht asynchron.
                     final LegendPermissionGroup group = new LegendPermissionGroup(groupName,
                             groupPrefix,
                             groupWeight,
-                            true);
+                            true,
+                            false);
                     this.groups.put(groupName, group);
                 }
 
@@ -75,6 +78,27 @@ public class GroupManager {
         } catch (SQLException exception) {
             exception.printStackTrace();
         }
+    }
+
+    /**
+     * Sucht nach online Spielern in einer bestimmten Gruppe.
+     * Gibt eine Liste der gefundenen LegendPermissionPlayer zurück, die sich in der angegebenen Gruppe befinden und online sind.
+     *
+     * @param groupName Der Name der Gruppe, nach der gesucht werden soll.
+     * @return Eine Liste von LegendPermissionPlayer-Objekten, die sich in der angegebenen Gruppe befinden und online sind.
+     * Wenn die Gruppe nicht gefunden wird oder keine Spieler in der Gruppe online sind, wird eine leere Liste zurückgegeben.
+     */
+    public List<LegendPermissionPlayer> findOnlineplayersInGroup(final String groupName) {
+        final LegendPermissionGroup group = findGroupByName(groupName);
+
+        if (group == null) return new ArrayList<>();
+
+        return this.players.values()
+                .stream()
+                .filter(legendPermissionPlayer -> legendPermissionPlayer.getGroup()
+                        .getName()
+                        .equalsIgnoreCase(groupName))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -90,13 +114,14 @@ public class GroupManager {
 
         if (group == null) return;
 
-        group.deleteData();
         this.groups.remove(groupName);
 
         this.players.values()
                 .stream()
-                .filter(legendPermissionPlayer -> legendPermissionPlayer.getPlayer().getName().equals(groupName))
+                .filter(legendPermissionPlayer -> legendPermissionPlayer.getGroup().getName().equals(groupName))
                 .forEach(LegendPermissionPlayer::leaveCurrentGroup);
+
+        group.deleteDataAsync();
     }
 
     /**
@@ -132,10 +157,10 @@ public class GroupManager {
     public void createPermissionGroup(final String groupName, final String groupPrefix, int weight) {
         if (existsGroupWithName(groupName)) return;
 
-        final LegendPermissionGroup group = new LegendPermissionGroup(groupName, groupPrefix, weight, false);
-        group.saveData();
-
+        //Wenn eine neue Gruppe erstellt wird, sind noch keine Berechtigungen für diese Gruppe vorhanden. Daher müssen keine Berechtigungen geladen werden.
+        final LegendPermissionGroup group = new LegendPermissionGroup(groupName, groupPrefix, weight, false, false);
         this.groups.put(groupName, group);
+        group.saveDataAsync();
     }
 
     /**
@@ -150,7 +175,7 @@ public class GroupManager {
         if (this.players.containsKey(uuid))
             return this.players.get(uuid);
 
-        final LegendPermissionPlayer player = new LegendPermissionPlayer(uuid);
+        final LegendPermissionPlayer player = new LegendPermissionPlayer(uuid, true);
         this.players.put(uuid, player);
         return player;
     }
