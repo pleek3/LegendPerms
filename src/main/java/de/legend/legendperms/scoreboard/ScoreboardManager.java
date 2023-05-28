@@ -2,6 +2,7 @@ package de.legend.legendperms.scoreboard;
 
 import de.legend.legendperms.permissions.LegendPermissionPlayer;
 import de.legend.legendperms.LegendPermsPlugin;
+import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.*;
@@ -14,6 +15,7 @@ import java.util.UUID;
 /**
  * Created by YannicK S. on 26.05.2023
  */
+@Getter
 public class ScoreboardManager {
 
     private final Map<UUID, String> playerTeams = new HashMap<>();

@@ -2,6 +2,7 @@ package de.legend.legendperms.permissions;
 
 import de.legend.legendperms.LegendPermsPlugin;
 import de.legend.legendperms.database.DatabaseManager;
+import de.legend.legendperms.database.DatabaseUpdate;
 import lombok.Getter;
 
 import java.sql.Connection;
@@ -15,7 +16,7 @@ import java.util.List;
  * Created by YannicK S. on 25.05.2023
  */
 @Getter
-public class LegendPermissionGroup {
+public class LegendPermissionGroup extends DatabaseUpdate {
 
     private static final LegendPermsPlugin PLUGIN = LegendPermsPlugin.instance();
     private static final DatabaseManager DATABASE_MANAGER = PLUGIN.databaseManager();
@@ -26,13 +27,17 @@ public class LegendPermissionGroup {
     private final int weight;
     private String prefix;
 
-    public LegendPermissionGroup(String name, String prefix, int weight, boolean loadPermissions) {
+    public LegendPermissionGroup(String name, String prefix, int weight, boolean loadPermissions, boolean asyncLoad) {
         this.name = name;
         this.prefix = prefix;
         this.weight = weight;
 
-        if (loadPermissions)
-            loadPermissions();
+
+        if (loadPermissions) {
+            if (asyncLoad)
+                executeAsync(this::loadPermissions);
+            else loadPermissions();
+        }
     }
 
     /**
@@ -43,7 +48,11 @@ public class LegendPermissionGroup {
      */
     public void setPrefix(String prefix) {
         this.prefix = prefix;
-        saveData();
+        PLUGIN.groupManager()
+                .findOnlineplayersInGroup(this.name)
+                .forEach(legendPermissionPlayer -> PLUGIN.scoreboardManager()
+                        .updateScoreboard(legendPermissionPlayer.getPlayer()));
+        saveDataAsync();
     }
 
     /**
@@ -80,37 +89,46 @@ public class LegendPermissionGroup {
     public void addPermission(final String permission) {
         if (PLUGIN.testing()) return;
 
-        final String query = "SELECT * FROM `legend_rank_permissions` WHERE `group_name` = ? AND `permission_string` = ?";
-        final String insertQuery = "INSERT INTO `legend_rank_permissions` (id, group_name, permission_string) VALUES (0,?, ?)";
+        if (this.permissions.contains(permission)) return;
+        this.permissions.add(permission);
 
-        final Connection connection = DATABASE_MANAGER.connection();
+        PLUGIN.groupManager()
+                .findOnlineplayersInGroup(this.name)
+                .forEach(LegendPermissionPlayer::refreshPlayerPermissions);
 
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, this.name);
-            statement.setString(2, permission);
+        executeAsync(() -> {
+            final String query = "SELECT * FROM `legend_rank_permissions` WHERE `group_name` = ? AND `permission_string` = ?";
+            final String insertQuery = "INSERT INTO `legend_rank_permissions` (id, group_name, permission_string) VALUES (0,?, ?)";
 
-            try (final ResultSet resultSet = statement.executeQuery()) {
+            final Connection connection = DATABASE_MANAGER.connection();
 
-                if (resultSet.next()) {
-                    return;
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, this.name);
+                statement.setString(2, permission);
+
+                try (final ResultSet resultSet = statement.executeQuery()) {
+
+                    if (resultSet.next()) {
+                        return;
+                    }
+
+                    PreparedStatement insertStatement = connection.prepareStatement(insertQuery);
+                    insertStatement.setString(1, this.name);
+                    insertStatement.setString(2, permission);
+                    DATABASE_MANAGER.executeUpdate(insertStatement);
                 }
-
-                PreparedStatement insertStatement = connection.prepareStatement(insertQuery);
-                insertStatement.setString(1, this.name);
-                insertStatement.setString(2, permission);
-                DATABASE_MANAGER.executeUpdate(insertStatement);
-            }
-        } catch (SQLException exception) {
-            exception.printStackTrace();
-        } finally {
-            try {
-                if (!connection.isClosed()) {
-                    connection.close();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            } finally {
+                try {
+                    if (!connection.isClosed()) {
+                        connection.close();
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
             }
-        }
+        });
     }
 
     /**
@@ -124,37 +142,46 @@ public class LegendPermissionGroup {
      */
     public void removePermission(final String permission) {
         if (PLUGIN.testing()) return;
+        if (!this.permissions.contains(permission)) return;
 
-        final String query = "SELECT * FROM `legend_rank_permissions` WHERE `group_name` = ? AND `permission_string` = ?";
-        final String deleteQuery = "DELETE FROM `legend_rank_permissions` WHERE `group_name` = ? and `permission_string` = ?";
+        this.permissions.remove(permission);
 
-        final Connection connection = DATABASE_MANAGER.connection();
+        PLUGIN.groupManager()
+                .findOnlineplayersInGroup(this.name)
+                .forEach(LegendPermissionPlayer::refreshPlayerPermissions);
 
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, this.name);
-            statement.setString(2, permission);
+        executeAsync(() -> {
+            final String query = "SELECT * FROM `legend_rank_permissions` WHERE `group_name` = ? AND `permission_string` = ?";
+            final String deleteQuery = "DELETE FROM `legend_rank_permissions` WHERE `group_name` = ? and `permission_string` = ?";
 
-            try (final ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    return;
+            final Connection connection = DATABASE_MANAGER.connection();
+
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, this.name);
+                statement.setString(2, permission);
+
+                try (final ResultSet resultSet = statement.executeQuery()) {
+                    if (!resultSet.next()) {
+                        return;
+                    }
+
+                    PreparedStatement insertStatement = connection.prepareStatement(deleteQuery);
+                    insertStatement.setString(1, this.name);
+                    insertStatement.setString(2, permission);
+                    DATABASE_MANAGER.executeUpdate(insertStatement);
                 }
-
-                PreparedStatement insertStatement = connection.prepareStatement(deleteQuery);
-                insertStatement.setString(1, this.name);
-                insertStatement.setString(2, permission);
-                DATABASE_MANAGER.executeUpdate(insertStatement);
-            }
-        } catch (SQLException exception) {
-            exception.printStackTrace();
-        } finally {
-            try {
-                if (!connection.isClosed()) {
-                    connection.close();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            } finally {
+                try {
+                    if (!connection.isClosed()) {
+                        connection.close();
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
             }
-        }
+        });
     }
 
     /**
@@ -164,6 +191,7 @@ public class LegendPermissionGroup {
      * Wenn die Gruppe nicht vorhanden ist, wird sie in die Datenbank eingefügt.
      * Andernfalls werden die Daten der Gruppe in der Datenbank aktualisiert.
      */
+    @Override
     public void saveData() {
         if (PLUGIN.testing()) return;
 
@@ -188,6 +216,7 @@ public class LegendPermissionGroup {
      * Wenn die Testphase des Plugins aktiv ist, wird die Methode vorzeitig beendet.
      * Die Daten der Gruppe werden aus der Datenbank gelöscht.
      */
+    @Override
     public void deleteData() {
         if (PLUGIN.testing()) return;
 

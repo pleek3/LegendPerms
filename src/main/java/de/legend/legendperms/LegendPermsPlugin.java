@@ -6,6 +6,7 @@ import de.legend.legendperms.files.ConfigFile;
 import de.legend.legendperms.language.LanguageManager;
 import de.legend.legendperms.listener.AsyncPlayerChatListener;
 import de.legend.legendperms.listener.PlayerJoinListener;
+import de.legend.legendperms.listener.PlayerQuitListener;
 import de.legend.legendperms.listener.SignChangeListener;
 import de.legend.legendperms.permissions.GroupManager;
 import de.legend.legendperms.scoreboard.ScoreboardManager;
@@ -68,10 +69,8 @@ public class LegendPermsPlugin extends JavaPlugin {
 
     private void init() {
         this.config = new ConfigFile();
-
+        
         this.databaseManager = new DatabaseManager(this);
-
-
         this.groupManager = new GroupManager(this);
         this.languageManager = new LanguageManager();
         this.scoreboardManager = new ScoreboardManager();
@@ -79,6 +78,7 @@ public class LegendPermsPlugin extends JavaPlugin {
         new CommandGroup(this);
         new AsyncPlayerChatListener(this);
         new PlayerJoinListener(this);
+        new PlayerQuitListener(this);
         new SignChangeListener(this);
     }
 }

@@ -2,6 +2,7 @@ package de.legend.legendperms.permissions;
 
 import de.legend.legendperms.LegendPermsPlugin;
 import de.legend.legendperms.database.DatabaseManager;
+import de.legend.legendperms.database.DatabaseUpdate;
 import de.legend.legendperms.scoreboard.ScoreboardManager;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,6 +14,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -20,27 +23,33 @@ import java.util.UUID;
  */
 @Getter
 @Setter
-public class LegendPermissionPlayer {
+public class LegendPermissionPlayer extends DatabaseUpdate {
 
     private static final DatabaseManager DATABASE_MANAGER = LegendPermsPlugin.instance().databaseManager();
     private static final GroupManager GROUP_MANAGER = LegendPermsPlugin.instance().groupManager();
     private static final ScoreboardManager SCOREBOARD_MANAGER = LegendPermsPlugin.instance().scoreboardManager();
     private final static LegendPermissionGroup FALLBACK_GROUP = GROUP_MANAGER.findGroupByName("fallback");
-
     private final UUID uuid;
-
+    private final List<Runnable> readyExecutors = new ArrayList<>();
     private PermissionAttachment bukkitPermissionAttachment;
-
     private LegendPermissionGroup previousGroup = FALLBACK_GROUP; //Group after the current group expired or not exists.
     private LegendPermissionGroup group = FALLBACK_GROUP;
     private long expiredTimestamp = -1L;
+    private boolean ready = false;
 
-    public LegendPermissionPlayer(final UUID uuid) {
+    public LegendPermissionPlayer(final UUID uuid, final boolean asyncLoad) {
         this.uuid = uuid;
 
-        loadData();
-        createBukkitPermissionAttachment();
-        refreshPlayerPermissions();
+        addReadyExecutor(() -> {
+            createBukkitPermissionAttachment();
+            refreshPlayerPermissions();
+        });
+
+        if (asyncLoad) {
+            loadDataAsync();
+        } else {
+            loadData();
+        }
     }
 
     /**
@@ -79,9 +88,15 @@ public class LegendPermissionPlayer {
      * Wechselt zur vorherigen Gruppe und setzt die vorherige Gruppe auf die Standardgruppe.
      */
     public void leaveCurrentGroup() {
-        setGroup(getPreviousGroup());
+        setGroup(FALLBACK_GROUP);
         setPreviousGroup(FALLBACK_GROUP);
-        saveData();
+        setExpiredTimestamp(-1L);
+        refreshPlayerPermissions();
+
+        if (!LegendPermsPlugin.instance().testing()) {
+            SCOREBOARD_MANAGER.updateScoreboard(getPlayer());
+            saveDataAsync();
+        }
     }
 
     /**
@@ -95,10 +110,13 @@ public class LegendPermissionPlayer {
     public void changeGroup(final LegendPermissionGroup group, final long groupExpiredTimestamp) {
         setPreviousGroup(getGroup());
         setGroup(group);
-        setExpiredTimestamp(groupExpiredTimestamp + System.currentTimeMillis());
-        saveData();
+        setExpiredTimestamp(groupExpiredTimestamp == -1 ? -1 : groupExpiredTimestamp + System.currentTimeMillis());
         refreshPlayerPermissions();
-        SCOREBOARD_MANAGER.updateScoreboard(getPlayer());
+
+        if (!LegendPermsPlugin.instance().testing()) {
+            SCOREBOARD_MANAGER.updateScoreboard(getPlayer());
+            saveDataAsync();
+        }
     }
 
 
@@ -112,7 +130,7 @@ public class LegendPermissionPlayer {
 
         long diff = this.expiredTimestamp - System.currentTimeMillis();
 
-        if (diff <= 0) {
+        if (diff / 1000 <= 0) {
             leaveCurrentGroup();
 
             final Player player = Bukkit.getPlayer(this.uuid);
@@ -124,16 +142,61 @@ public class LegendPermissionPlayer {
     }
 
     /**
+     * Setzt den Zustand des Spielers und führt alle ReadyExecutor aus.
+     * <p>
+     * Setzt den Zustand des Spielers auf den angegebenen Wert.
+     * Wenn der Wert "true" ist, werden alle ReadyExecutor ausgeführt.
+     * Nach der Ausführung werden alle ReadyExecutor aus der Liste entfernt.
+     *
+     * @param ready Der Zustand, der gesetzt werden soll.
+     */
+    public void setReady(final boolean ready) {
+        this.ready = ready;
+
+        if (ready) {
+            // Der Spieler ist bereit, führe alle ReadyExecutor aus
+            for (Runnable runnable : this.readyExecutors) {
+                runnable.run();
+            }
+            this.readyExecutors.clear(); // Entferne alle ReadyExecutor aus der Liste
+        }
+    }
+
+
+    /**
+     * Fügt einen ausführbaren Codeblock zur Liste der bereiten Ausführer hinzu oder führt ihn sofort aus, wenn das Plugin bereit ist.
+     * <p>
+     * Wenn das Plugin bereits bereit ist, wird der übergebene Codeblock sofort ausgeführt.
+     * Andernfalls wird der Codeblock zur Liste der bereiten Ausführer hinzugefügt, um später ausgeführt zu werden, wenn das Plugin bereit ist.
+     *
+     * @param runnable Der ausführbare Codeblock, der hinzugefügt oder sofort ausgeführt werden soll.
+     */
+    public void addReadyExecutor(final Runnable runnable) {
+        if (this.ready) {
+            // Der Spieler ist bereits bereit, also führe den Codeblock sofort aus.
+            runnable.run();
+            return;
+        }
+
+        // Der Spieler ist noch nicht bereit, füge den Codeblock zur Liste der bereiten Ausführer hinzu.
+        this.readyExecutors.add(runnable);
+    }
+
+    /**
      * Lädt die Daten des Spielers aus der Datenbank.
      */
-    private void loadData() {
+    @Override
+    public void loadData() {
         final String query = "SELECT * FROM `legend_rank_users` WHERE `uuid` = ?";
 
         try (PreparedStatement statement = DATABASE_MANAGER.connection().prepareStatement(query)) {
             statement.setString(1, this.uuid.toString());
 
             try (final ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) return;
+                if (!resultSet.next()) {
+                    saveData();
+                    return;
+                }
 
                 this.expiredTimestamp = resultSet.getLong("expired_timestamp");
 
@@ -156,12 +219,15 @@ public class LegendPermissionPlayer {
             }
         } catch (SQLException exception) {
             exception.printStackTrace();
+        } finally {
+            setReady(true);
         }
     }
 
     /**
      * Speichert die Daten des Spielers in der Datenbank.
      */
+    @Override
     public void saveData() {
         if (LegendPermsPlugin.instance().testing()) return;
 

@@ -34,12 +34,16 @@ public record PlayerJoinListener(LegendPermsPlugin plugin) implements Listener {
 
         final LegendPermissionPlayer legendPermissionPlayer = this.plugin.groupManager()
                 .getOrCreatePlayer(player.getUniqueId());
-        legendPermissionPlayer.checkGroupExpired();
 
-        //Zeigt beim Betreten des Servers die Gruppe/den Rang
-        final String prefix = ChatColor.translateAlternateColorCodes('&',
-                legendPermissionPlayer.getGroup().getPrefix());
-        this.plugin.languageManager().sendTranslatedMessage(player, "player_join", Collections.singletonList(prefix));
+        legendPermissionPlayer.addReadyExecutor(() -> {
+            legendPermissionPlayer.checkGroupExpired();
+
+            //Zeigt beim Betreten des Servers die Gruppe/den Rang
+            final String prefix = ChatColor.translateAlternateColorCodes('&',
+                    legendPermissionPlayer.getGroup().getPrefix());
+            this.plugin.languageManager()
+                    .sendTranslatedMessage(player, "player_join", Collections.singletonList(prefix));
+        });
 
         this.plugin.scoreboardManager().updateScoreboard(player);
     }
